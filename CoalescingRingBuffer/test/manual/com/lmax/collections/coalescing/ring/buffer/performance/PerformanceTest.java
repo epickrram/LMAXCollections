@@ -17,6 +17,7 @@ package com.lmax.collections.coalescing.ring.buffer.performance;
 import com.lmax.collections.coalescing.ring.buffer.CoalescingBuffer;
 import com.lmax.collections.coalescing.ring.buffer.CoalescingRingBuffer;
 import com.lmax.collections.coalescing.ring.buffer.MarketSnapshot;
+import com.lmax.collections.coalescing.ring.buffer.MinimumProducerWorkCoalescingRingBuffer;
 
 import static com.lmax.collections.coalescing.ring.buffer.MarketSnapshot.createMarketSnapshot;
 
@@ -78,15 +79,17 @@ public class PerformanceTest {
         int runNumber = 1;
 
         do {
-            long result = run(runNumber++, 2 * BILLION);
+//            long result = run(runNumber++, 2 * BILLION, new CoalescingRingBuffer<Long, MarketSnapshot>(1 << 20));
+            long result = run(runNumber++, 2 * BILLION, new MinimumProducerWorkCoalescingRingBuffer<Long, MarketSnapshot>(2 * NUMBER_OF_INSTRUMENTS, 10, new LongHashProvider()));
             update(results, result);
             Thread.sleep(5 * SECONDS);
 
         } while (!areAllResultsTheSame(results));
 	}
 
-    private static long run(int runNumber, long numberOfUpdates) throws InterruptedException {
-        CoalescingRingBuffer<Long, MarketSnapshot> buffer = new CoalescingRingBuffer<Long, MarketSnapshot>(1 << 20);
+    //long result = run(runNumber++, 2 * BILLION, new MinimumProducerWorkCoalescingRingBuffer<Long, MarketSnapshot>(2 * NUMBER_OF_INSTRUMENTS, 10, new LongHashProvider()));
+
+    private static long run(int runNumber, long numberOfUpdates, final CoalescingBuffer<Long, MarketSnapshot> buffer) throws InterruptedException {
         PerformanceTest test = new PerformanceTest(buffer, numberOfUpdates);
 
         System.out.println("\n======================================= run " + runNumber + " =======================================\n");
@@ -112,4 +115,12 @@ public class PerformanceTest {
         return true;
     }
 
+    private static class LongHashProvider implements MinimumProducerWorkCoalescingRingBuffer.HashProvider<Long>
+    {
+        @Override
+        public int hash(final Long key, final int keySpace)
+        {
+            return (int) (key.longValue() & 31);
+        }
+    }
 }
